@@ -17,6 +17,7 @@ $Configuration
 	{
 		$AdditionalIncludeDirectories	"$BASE;$SRCDIR\game\shared\hl2,.\hl2,.\hl2mp,$SRCDIR\game\shared\hl2mp"
 		$PreprocessorDefinitions		"$BASE;HL2MP;HL2_DLL;NEXT_BOT"
+		$PreprocessorDefinitions		"$BASE;FMODSOUNDSYSTEM"
 	}
 }
 
@@ -60,6 +61,9 @@ $Project "Server (HL2MP)"
 		$File	"trigger_area_capture.h"
 		$File   "$SRCDIR\game\shared\teamplay_round_timer.cpp"
 		$File   "$SRCDIR\game\shared\teamplay_round_timer.h"
+		
+		$File	"$SRCDIR\game\shared\fmodmanager.cpp"
+		$File	"$SRCDIR\game\shared\fmodmanager.h"
 
 		$Folder "NextBot"
 		{

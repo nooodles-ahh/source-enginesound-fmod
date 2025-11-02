@@ -20,6 +20,9 @@
 #include "choreoscene.h"
 #include "choreoactor.h"
 #include "toolframework_client.h"
+#ifdef FMODSOUNDSYSTEM
+#include "fmodmanager.h"
+#endif
 
 // memdbgon must be the last include file in a .cpp file!!!
 #include "tier0/memdbgon.h"
@@ -932,11 +935,19 @@ void C_BaseFlex::ProcessVisemes( Emphasized_Phoneme *classes )
 		if ( !vd || vd->ShouldIgnorePhonemes() )
 			continue;
 
+#ifdef FMODSOUNDSYSTEM
+		CSentence *sentence = g_pFMODManager->GetSentence( vd->GetSource() );
+		if ( !sentence )
+			continue;
+
+		float	sentence_length = g_pFMODManager->GetSentenceLength( vd->GetSource() );
+#else
 		CSentence *sentence = engine->GetSentence( vd->GetSource() );
 		if ( !sentence )
 			continue;
 
 		float	sentence_length = engine->GetSentenceLength( vd->GetSource() );
+#endif
 		float	timesincestart = vd->GetElapsedTime();
 
 		// This sound should be done...why hasn't it been removed yet???

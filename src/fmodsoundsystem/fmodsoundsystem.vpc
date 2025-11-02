@@ -1,0 +1,50 @@
+//-----------------------------------------------------------------------------
+//	FMODSOUNDSYSTEM.VPC
+//
+//	Project Script
+//-----------------------------------------------------------------------------
+$Macro SRCDIR		".."
+$Macro OUTBINDIR	"$SRCDIR\..\game\mod_hl2mp\bin"
+$Include "$SRCDIR\vpc_scripts\source_dll_base.vpc"
+
+
+$Configuration
+{
+	$Compiler
+	{
+		$AdditionalIncludeDirectories	"$BASE;.\;$SRCDIR\public;$SRCDIR\public\fmod;$SRCDIR\public\fmod_studio"
+		$PreprocessorDefinitions		"$BASE;"
+	}
+}
+
+$Project "FMOD Sound System"
+{
+	$Folder "Source Files"
+	{
+		$File	"enginesound_client.cpp" \
+				"enginesound_server.cpp" \
+				"fmod_impl.cpp"
+				
+		$File	"enginesound_client.h" \
+				"enginesound_server.h" \
+				"fmod_impl.h" \
+				"sound_netmessages.h"
+	}
+	
+	$Folder	"Public Header Files"
+	{
+		$File	"$SRCDIR\public\fmod\fmod.hpp" \
+				"$SRCDIR\public\fmod\fmod_errors.h" \
+				"$SRCDIR\public\fmod\fmod_studio.hpp" \
+	}
+
+	$Folder	"Link Libraries"
+	{
+		$Implib "$LIBPUBLIC\tier1"
+		$Implib "$LIBPUBLIC\tier2"
+		$Implib "$LIBPUBLIC\tier3"
+		$Implib "$LIBPUBLIC\mathlib"
+		$Implib "$LIBPUBLIC\fmodstudio_vc"
+		$Implib "$LIBPUBLIC\fmod_vc"
+	}
+}

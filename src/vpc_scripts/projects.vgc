@@ -24,6 +24,11 @@ $Project "fgdlib"
 	"fgdlib\fgdlib.vpc" [$WINDOWS]
 }
 
+$Project "fmodsoundsystem"
+{
+	"fmodsoundsystem\fmodsoundsystem.vpc" [$WINDOWS]
+}
+
 $Project "game_shader_generic_example"
 {
 	"materialsystem\stdshaders\game_shader_generic_example_hl2mp.vpc" [$HL2MP]

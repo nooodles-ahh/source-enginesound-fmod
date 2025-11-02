@@ -18,6 +18,7 @@ $Group "game"
 {
 	"client"
 	"launcher_main"
+	"fmodsoundsystem"
 	"mathlib"
 	"matsys_controls"
 	"raytrace"

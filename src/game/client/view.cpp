@@ -59,6 +59,9 @@
 #include "c_prop_portal.h" //portal surface rendering functions
 #endif
 
+#ifdef FMODSOUNDSYSTEM
+#include "fmodmanager.h"
+#endif
 	
 // memdbgon must be the last include file in a .cpp file!!!
 #include "tier0/memdbgon.h"
@@ -794,6 +797,9 @@ void CViewRender::SetUpViews()
 	viewEye.angles = audioState.m_Angles;
 
 	engine->SetAudioState( audioState );
+#ifdef FMODSOUNDSYSTEM
+	g_pFMODManager->SetAudioState( audioState );
+#endif
 
 	g_vecPrevRenderOrigin = g_vecRenderOrigin;
 	g_vecPrevRenderAngles = g_vecRenderAngles;

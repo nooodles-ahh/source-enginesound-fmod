@@ -35,6 +35,10 @@
 #define CRecipientFilter C_RecipientFilter
 #endif
 
+#ifdef FMODSOUNDSYSTEM
+#include "fmodmanager.h"
+#endif
+
 // memdbgon must be the last include file in a .cpp file!!!
 #include "tier0/memdbgon.h"
 
@@ -812,7 +816,11 @@ public:
 #if defined( CLIENT_DLL )
 		enginesound->EmitAmbientSound( params.soundname, params.volume, params.pitch, iFlags, soundtime );
 #else
-		engine->EmitAmbientSound(entindex, origin, params.soundname, params.volume, params.soundlevel, iFlags, params.pitch, soundtime );
+#ifdef FMODSOUNDSYSTEM
+		g_pFMODManager->EmitAmbientSound( entindex, origin, params.soundname, params.volume, params.soundlevel, iFlags, params.pitch, soundtime );
+#else
+		engine->EmitAmbientSound( entindex, origin, params.soundname, params.volume, params.soundlevel, iFlags, params.pitch, soundtime );
+#endif
 #endif
 
 		bool needsCC = !( iFlags & ( SND_STOP | SND_CHANGE_VOL | SND_CHANGE_PITCH ) );
@@ -934,7 +942,11 @@ public:
 #if defined( CLIENT_DLL )
 			enginesound->EmitAmbientSound( pSample, volume, pitch, flags, soundtime );
 #else
+#ifdef FMODSOUNDSYSTEM
+			g_pFMODManager->EmitAmbientSound( entindex, origin, pSample, volume, soundlevel, flags, pitch, soundtime );
+#else
 			engine->EmitAmbientSound( entindex, origin, pSample, volume, soundlevel, flags, pitch, soundtime );
+#endif
 #endif
 
 			if ( duration )
@@ -1370,7 +1382,11 @@ void UTIL_EmitAmbientSound( int entindex, const Vector &vecOrigin, const char *s
 			char name[32];
 			Q_snprintf( name, sizeof(name), "!%d", sentenceIndex );
 #if !defined( CLIENT_DLL )
+#ifdef FMODSOUNDSYSTEM
+			g_pFMODManager->EmitAmbientSound( entindex, vecOrigin, name, vol, soundlevel, fFlags, pitch, soundtime );
+#else
 			engine->EmitAmbientSound( entindex, vecOrigin, name, vol, soundlevel, fFlags, pitch, soundtime );
+#endif
 #else
 			enginesound->EmitAmbientSound( name, vol, pitch, fFlags, soundtime );
 #endif
