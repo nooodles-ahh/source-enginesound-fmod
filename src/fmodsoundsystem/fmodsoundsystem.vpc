@@ -23,11 +23,12 @@ $Project "FMOD Sound System"
 	{
 		$File	"enginesound_client.cpp" \
 				"enginesound_server.cpp" \
-				"fmod_impl.cpp"
+				"fmod_impl.cpp" \
+				"fmod_overrides.cpp"
 				
-		$File	"enginesound_client.h" \
-				"enginesound_server.h" \
-				"fmod_impl.h" \
+		$File	"fmod_impl.h" \
+				"fmod_overrides.h" \
+				"gain_lut.h" \
 				"sound_netmessages.h"
 	}
 	
@@ -35,7 +36,7 @@ $Project "FMOD Sound System"
 	{
 		$File	"$SRCDIR\public\fmod\fmod.hpp" \
 				"$SRCDIR\public\fmod\fmod_errors.h" \
-				"$SRCDIR\public\fmod\fmod_studio.hpp" \
+				"$SRCDIR\public\fmod\fmod_studio.hpp"
 	}
 
 	$Folder	"Link Libraries"

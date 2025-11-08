@@ -36,6 +36,8 @@ server.pdb
 server.dll
 server.lib
 
+fmodsoundsystem.dll
+
 client.so
 client.so.dbg
 server.so

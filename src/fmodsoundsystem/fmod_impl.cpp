@@ -1,15 +1,13 @@
 #include "fmod_impl.h"
-#include <DirectXMath.h>
 #include <map>
 #include <vector>
 #include <string>
-
+#include <assert.h>
 #include <fmod/fmod.hpp>
 #include <fmod/fmod_errors.h>
 #include <fmod_studio/fmod_studio.hpp>
 #include <stdarg.h>
 
-using namespace DirectX;
 using namespace FMOD;
 
 constexpr bool IsSoundSDK = true;
@@ -23,7 +21,6 @@ void DefaultLogFunction( const char *fmt, ... )
 	va_end( args );
 }
 static LOG_FUNCTION Log = DefaultLogFunction;
-
 
 class CFMODAudioEngine : public IFMODAudioEngine
 {
@@ -92,6 +89,8 @@ public:
 			// A unit in source is about an inch. This will affect the doppler and mindist for sounds
 			m_pSystem->set3DSettings( 1.f, SourceUnitsPerMeter, 1.f );
 		}
+
+		return true;
 	}
 
 	virtual void Shutdown()
@@ -125,7 +124,7 @@ public:
 
 		FMOD_MODE mode = FMOD_IGNORETAGS;
 		mode |= ( isStream ? FMOD_CREATESTREAM : FMOD_CREATESAMPLE );
-		mode |= is3d * FMOD_3D;
+		mode |= is3d * ( FMOD_3D | FMOD_3D_INVERSEROLLOFF );
 
 		FMOD::Sound *pSound = nullptr;
 		if ( FMOD_RESULT result = m_pSystem->createSound( soundName, mode, nullptr, &pSound ) )
@@ -190,7 +189,7 @@ public:
 		m_pStudioSystem->setListenerAttributes( 0, &m_listenerAttribs );
 	}
 
-	virtual int PlaySound( const char *soundName, float volume, const SoundVector &position, const SoundVector &angle, bool startPaused ) 
+	virtual int PlaySound( const char *soundName, float volume, const SoundVector &position, const SoundVector &angle, bool startPaused )
 	{
 		auto soundIt = m_loadedSounds.find( soundName );
 		if ( soundIt == m_loadedSounds.end() )
@@ -214,7 +213,7 @@ public:
 
 		const int channelId = ++m_lastGUID;
 		channel->setVolume( volume );
-		FMOD_VECTOR vec = *( static_cast<FMOD_VECTOR *>( (void*)&position ) );
+		FMOD_VECTOR vec = *( static_cast<FMOD_VECTOR *>( (void *) &position ) );
 		channel->set3DAttributes( &vec, nullptr );
 		channel->setPaused( startPaused );
 
@@ -302,6 +301,54 @@ public:
 			}
 		}
 		return false;
+	}
+
+	virtual float GetChannelDuration( int channelId )
+	{
+		auto channelIt = m_channels.find( channelId );
+		if ( channelIt != m_channels.end() )
+		{
+			FMOD::Sound *sound = nullptr;
+			channelIt->second->getCurrentSound( &sound );
+			if ( sound )
+			{
+				unsigned int length;
+				sound->getLength( &length, FMOD_TIMEUNIT_MS );
+				return length / 1000.f;
+			}
+		}
+		return 0.f;
+	}
+
+	virtual float GetChannelPlaybackPosition( int channelId )
+	{
+		auto channelIt = m_channels.find( channelId );
+		if ( channelIt != m_channels.end() )
+		{
+			unsigned position = 0;
+			channelIt->second->getPosition( &position, FMOD_TIMEUNIT_MS );
+			return position/1000.f;
+		}
+		return 0.f;
+	}
+
+	virtual void SetChannelPlaybackPosition( int channelId, float flTime )
+	{
+		auto channelIt = m_channels.find( channelId );
+		if ( channelIt != m_channels.end() )
+		{
+			unsigned position = (unsigned) ( flTime * 1000.f );
+			channelIt->second->setPosition( position, FMOD_TIMEUNIT_MS );
+		}
+	}
+
+	virtual void SetChannelMinMaxDist( int channelId, float min, float max )
+	{
+		auto channelIt = m_channels.find( channelId );
+		if ( channelIt != m_channels.end() )
+		{
+			channelIt->second->set3DMinMaxDistance( min, max );
+		}
 	}
 };
 

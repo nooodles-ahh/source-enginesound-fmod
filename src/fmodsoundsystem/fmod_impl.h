@@ -1,6 +1,5 @@
 #pragma once
 
-#include <DirectXMath.h>
 #include <fmod.hpp>
 
 typedef void        ( _stdcall *LOG_FUNCTION )      ( const char *fmt, ... );
@@ -40,6 +39,10 @@ public:
 	virtual void SetChannelPitch( int channelId, float pitch) = 0;
 	virtual bool IsChannelPlaying( int channelId ) = 0;
 	virtual bool MatchesChannelName( int channelId, const char* name ) = 0;
+	virtual float GetChannelDuration( int channelId ) = 0;
+	virtual float GetChannelPlaybackPosition( int channelId ) = 0;
+	virtual void SetChannelPlaybackPosition( int channelId, float flTime ) = 0;
+	virtual void SetChannelMinMaxDist( int channelId, float min, float max ) = 0;
 };
 
 extern IFMODAudioEngine *g_pFMODAudioEngine;

@@ -24,7 +24,7 @@ CFMODManager::~CFMODManager()
 bool CFMODManager::Init()
 {
 	char szPath[MAX_PATH];
-	V_sprintf_safe(szPath, "%s\\bin" PLATFORM_DIR "\\fmodsoundsystem.dll", CommandLine()->ParmValue("-game", "hl2"));
+	V_sprintf_safe(szPath, "%s\\bin" PLATFORM_DIR "\\fmodsoundsystem" DLL_EXT_STRING, CommandLine()->ParmValue("-game", "hl2"));
 	m_hFMODModule = Sys_LoadModule(szPath);
 	if (!m_hFMODModule)
 		return false;
