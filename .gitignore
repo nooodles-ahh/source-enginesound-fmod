@@ -504,3 +504,8 @@ FodyWeavers.xsd
 
 # JetBrains Rider
 *.sln.iml
+
+# Files I personally don't want
+*.vmx
+*.prt
+*.bsp

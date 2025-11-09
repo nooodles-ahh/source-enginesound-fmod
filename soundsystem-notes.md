@@ -135,19 +135,52 @@ Auto DSP is how source alters the DSP based on the size and characteristics of t
 - alien interior huge
 
 ## Convars
-"adsp_debug" = "0"
-"adsp_door_height" = "112"
-"adsp_wall_height" = "128"
-"adsp_low_ceiling" = "108"
-"adsp_room_min" = "102"
-"adsp_duct_min" = "106"
-"adsp_hall_min" = "110"
-"adsp_tunnel_min" = "114"
-"adsp_street_min" = "118"
-"adsp_alley_min" = "122"
-"adsp_courtyard_min" = "126"
-"adsp_openspace_min" = "130"
-"adsp_openwall_min" = "130"
-"adsp_openstreet_min" = "118"
-"adsp_opencourtyard_min" = "126"
+- "adsp_debug" = "0"
+- "adsp_door_height" = "112"
+- "adsp_wall_height" = "128"
+- "adsp_low_ceiling" = "108"
+- "adsp_room_min" = "102"
+- "adsp_duct_min" = "106"
+- "adsp_hall_min" = "110"
+- "adsp_tunnel_min" = "114"
+- "adsp_street_min" = "118"
+- "adsp_alley_min" = "122"
+- "adsp_courtyard_min" = "126"
+- "adsp_openspace_min" = "130"
+- "adsp_openwall_min" = "130"
+- "adsp_openstreet_min" = "118"
+- "adsp_opencourtyard_min" = "126"
 
+
+## Describing a space
+Size/materials should impact amount of reverb
+
+### Room
+Room ratio < 2.5, Sky = 0
+
+### Tunnel
+Room ratio >= 4, Sky = 0
+
+### Hall
+Room factor >= 2.5, ShortSide <= 96
+
+### Street
+Room ratio >=2.5, ShortSide > 144, Sky = 1
+
+### Alley
+Room ratio >= 3, ShortSide >= 96 && <= 144, Sky = 1
+
+### Courtyard
+Room ratio < 2.5 and walls > adsp_wall_height 
+
+### Open space
+Room ratio < 2.5 and walls < adsp_wall_height 
+
+### Open wall
+TODO
+
+### Open street
+TODO
+
+### Open courtyard
+TODO
