@@ -1,3 +1,8 @@
+//====================================================================
+// Written by Nooodles (nooodlesahh@protonmail.com)
+// 
+// Purpose: Implementation for the client-side IEngineSound
+//====================================================================
 #include <tier1.h>
 #include <tier2/tier2.h>
 #include <tier3/tier3.h>
@@ -16,6 +21,7 @@
 #include <fmodsoundsystem/ifmodenginesound.h>
 #include "mouthinfo.h"
 #include <utllinkedlist.h>
+#include "autodsp.h"
 
 constexpr float SourceUnitsPerMeter = 52.49344f;
 
@@ -59,7 +65,7 @@ public:
 
 	// IFMODEngineSound
 public:
-	virtual void Initialize( CreateInterfaceFn appSystemFactory, CreateInterfaceFn gameFactory, CGlobalVarsBase *globals )
+	virtual void Initialize( CreateInterfaceFn appSystemFactory, CreateInterfaceFn physicsFactory, CreateInterfaceFn gameFactory, CGlobalVarsBase *globals )
 	{
 		MathLib_Init();
 
@@ -72,6 +78,7 @@ public:
 		m_oldEngineSound = (IEngineSound *) appSystemFactory( IENGINESOUND_CLIENT_INTERFACE_VERSION, NULL );
 		m_entitylist = (IClientEntityList *) gameFactory( VCLIENTENTITYLIST_INTERFACE_VERSION, NULL );
 		m_pGlobals = globals;
+		m_autoDSP.Init( appSystemFactory, physicsFactory );
 
 		g_pFMODAudioEngine->Init(
 			USER_FMOD_ALLOC,
@@ -157,6 +164,18 @@ public:
 			continue;
 		}
 
+		if ( m_engineClient->IsConnected() )
+		{
+			static float updateDSPTime = 0.f;
+			updateDSPTime -= frametime;
+			if ( m_needADSPUpdate && updateDSPTime <= 0.f )
+			{
+				m_autoDSP.Update( m_oldAudioState.m_Origin );
+				m_needADSPUpdate = false;
+				updateDSPTime = 1.f / 10.f;
+			}
+		}
+
 		g_pFMODAudioEngine->Update( frametime );
 	}
 
@@ -181,6 +200,13 @@ public:
 			{ vecForward.x, vecForward.z, -vecForward.y },
 			{ vecUp.x, vecUp.z, -vecUp.y }
 		);
+
+		if ( m_oldAudioState.m_Origin != state.m_Origin ||
+			m_oldAudioState.m_bIsUnderwater != state.m_bIsUnderwater )
+		{
+			m_needADSPUpdate = true;
+		}
+		m_oldAudioState = state;
 	}
 
 	virtual CSentence *GetSentence( CAudioSource *audioSource )
@@ -511,6 +537,10 @@ private:
 	IClientEntityList *m_entitylist;
 	CGlobalVarsBase *m_pGlobals;
 	CUtlLinkedList< SoundChannel > m_activeChannels;
+
+	AudioState_t m_oldAudioState;
+	bool m_needADSPUpdate;
+	CAutoDSP m_autoDSP;
 };
 
 CEngineSoundClient g_EngineSoundClient;

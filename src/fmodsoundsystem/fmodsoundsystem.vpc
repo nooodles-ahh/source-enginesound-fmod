@@ -23,10 +23,12 @@ $Project "FMOD Sound System"
 	{
 		$File	"enginesound_client.cpp" \
 				"enginesound_server.cpp" \
+				"autodsp.cpp" \
 				"fmod_impl.cpp" \
 				"fmod_overrides.cpp"
 				
 		$File	"fmod_impl.h" \
+				"autodsp.h" \
 				"fmod_overrides.h" \
 				"gain_lut.h" \
 				"sound_netmessages.h"

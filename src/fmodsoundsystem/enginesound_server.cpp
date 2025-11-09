@@ -1,3 +1,8 @@
+//====================================================================
+// Written by Nooodles (nooodlesahh@protonmail.com)
+// 
+// Purpose: Implementation for the server-side IEngineSound
+//====================================================================
 #include <fmodsoundsystem/ifmodenginesound.h>
 #include <tier1/tier1.h>
 #include "sound_netmessages.h"
@@ -12,7 +17,7 @@ public:
 
 	// IFMODEngineSound
 public:
-	virtual void Initialize( CreateInterfaceFn appSystemFactory, CreateInterfaceFn gameFactory, CGlobalVarsBase *globals )
+	virtual void Initialize( CreateInterfaceFn appSystemFactory, CreateInterfaceFn physicsFactory, CreateInterfaceFn gameFactory, CGlobalVarsBase *globals )
 	{
 		MathLib_Init();
 		ConnectTier1Libraries( &appSystemFactory, 1 );

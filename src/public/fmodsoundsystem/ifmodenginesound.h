@@ -14,7 +14,7 @@ class CAudioSource;
 abstract_class IFMODEngineSound : public IEngineSound
 {
 public:
-	virtual void Initialize( CreateInterfaceFn appSystemFactory, CreateInterfaceFn gameFactory, CGlobalVarsBase *globals ) = 0;
+	virtual void Initialize( CreateInterfaceFn appSystemFactory, CreateInterfaceFn physicsFactory, CreateInterfaceFn gameFactory, CGlobalVarsBase *globals ) = 0;
 	virtual void Shutdown() = 0;
 
 	// Client only

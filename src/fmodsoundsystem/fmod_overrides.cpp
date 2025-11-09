@@ -1,3 +1,11 @@
+//====================================================================
+// File functions written by Spirrwell. 
+// https://github.com/Spirrwell/source-sdk-2013-FMOD
+// 
+// Forgot who wrote the alloc/free functions. Sorry
+// 
+// Purpose: Source engine specific overrides for FMOD
+//====================================================================
 #include "fmod_overrides.h"
 #include <fmod/fmod_errors.h>
 #include "filesystem.h"

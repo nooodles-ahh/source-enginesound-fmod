@@ -1,3 +1,8 @@
+//====================================================================
+// Written by Nooodles (nooodlesahh@protonmail.com)
+// 
+// Purpose: Gamesystem to interface with and update fmodenginesound
+//====================================================================
 #include "cbase.h"
 #include "fmodmanager.h"
 #include <icommandline.h>
@@ -42,9 +47,9 @@ bool CFMODManager::Init()
 	factorylist_t factories;
 	FactoryList_Retrieve(factories);
 #ifdef CLIENT_DLL
-	m_pFMODSystem->Initialize( factories.appSystemFactory, Sys_GetFactoryThis(), gpGlobals );
+	m_pFMODSystem->Initialize( factories.appSystemFactory, factories.physicsFactory, Sys_GetFactoryThis(), gpGlobals );
 #else
-	m_pFMODSystem->Initialize(factories.engineFactory, Sys_GetFactoryThis(), gpGlobals);
+	m_pFMODSystem->Initialize(factories.engineFactory, factories.physicsFactory, Sys_GetFactoryThis(), gpGlobals);
 #endif
 	enginesound = m_pFMODSystem;
 	return true;

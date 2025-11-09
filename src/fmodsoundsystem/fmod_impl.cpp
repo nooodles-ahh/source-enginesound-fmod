@@ -1,3 +1,8 @@
+//====================================================================
+// Written by Nooodles (nooodlesahh@protonmail.com)
+// 
+// Purpose: FMOD engine
+//====================================================================
 #include "fmod_impl.h"
 #include <map>
 #include <vector>
