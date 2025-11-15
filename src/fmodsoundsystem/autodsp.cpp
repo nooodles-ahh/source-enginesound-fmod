@@ -16,57 +16,57 @@
 #include "tier2/tier2.h"
 #include "tier2/renderutils.h"
 
+ConVar *adsp_debug = nullptr;
+
 IPhysicsSurfaceProps *physprops = NULL;
 IEngineTrace *enginetrace = NULL;
 IVDebugOverlay *debugoverlay = NULL;
 
-enum RoomType
+DynamicReverbSpace CAutoDSP::GetRoomType( Vector &size, float &skyVisibility )
 {
-	Room = 0,
-	Duct,
-	Hall,
-	Tunnel,
-	Street,
-	Alley,
-	Courtyard,
-	OpenSpace,
-	OpenWall,
-	OpenStreet,
-	OpenCourtyard,
-};
+	float width = size.x;
+	float depth = size.y;
+	float height = size.z;
 
-int CAutoDSP::GetRoomType(Vector &size, float &reflectivity, float &skyVisibility )
-{
-	float width, depth, height;
-	width = depth = height = 0.f;
-
-	float skyVisiblity = 0.f;
+	float skyVisiblity = skyVisibility;
 
 	float sideA = MAX( 1, width );
 	float sideB = MAX( 1, depth );
-	if( sideA > sideB )
+	if ( sideA < sideB )
 		V_swap<float>( sideA, sideB );
 
-	float roomRatio = sideA / sideB;
+	constexpr float RoomRatio = 2.5f;
+	constexpr float TunnelRatio = 4.0f;
+	constexpr float SkyFactor = 0.7f;
+
+	float spaceRatio = sideA / sideB;
 
 	// outside
-	if ( skyVisiblity > 0.75f )
+	if ( skyVisiblity > SkyFactor )
 	{
-		// street
-		// alley
-		// courtyard
-		// openspace
-		// openwall
-		// openstreet
-		// opencourtyard
+		// TODO
+		return DynamicReverbSpace::OpenSpace;
 	}
 	// inside
 	else
 	{
-		// room
-		// duct
-		// hall
-		// tunnel
+		// TODO what is considered a duct?
+
+		// is this boxy?
+		if ( spaceRatio > RoomRatio )
+		{
+			if ( sideB <= 96 )
+			{
+				return DynamicReverbSpace::Hall;
+			}
+			else if ( spaceRatio >= TunnelRatio )
+			{
+				return DynamicReverbSpace::Tunnel;
+			}
+		}
+
+		// it's just a fucking room
+		return DynamicReverbSpace::Room;
 	}
 }
 
@@ -101,7 +101,7 @@ void CAutoDSP::GetSpaceSize( Vector &startPos, Vector &size, float &reflectivity
 	for ( int i = 0; i < 12; ++i )
 	{
 		Vector vecDir;
-		VectorYawRotate( VecForward, (360.f/12.f) * float( i ), vecDir );
+		VectorYawRotate( VecForward, ( 360.f / 12.f ) * float( i ), vecDir );
 		Ray_t ray;
 		ray.Init( vecStart, vecStart + ( vecDir * MAX_TRACE_LENGTH ) );
 
@@ -112,7 +112,8 @@ void CAutoDSP::GetSpaceSize( Vector &startPos, Vector &size, float &reflectivity
 		if ( psurf )
 			totalReflectivity = psurf->audio.reflectivity;
 
-		debugoverlay->AddLineOverlay( tr.startpos, tr.endpos, 0, 255, 255, false, 10 );
+		if ( adsp_debug->GetBool() )
+			debugoverlay->AddLineOverlay( tr.startpos, tr.endpos, 0, 255, 255, false, 10 );
 	}
 
 	// find the longest set
@@ -130,12 +131,12 @@ void CAutoDSP::GetSpaceSize( Vector &startPos, Vector &size, float &reflectivity
 	// Average the neighbouring traces
 	size.x = (
 		( dists[longestIdx] + dists[longestIdx + 6] ) +
-		( dists[(longestIdx + 13) % 12] + dists[( longestIdx + 5 ) % 12] ) +
+		( dists[( longestIdx + 13 ) % 12] + dists[( longestIdx + 5 ) % 12] ) +
 		( dists[( longestIdx + 1 ) % 12] + dists[( longestIdx + 7 ) % 12] )
 		) / 3.f;
 
 	size.y = (
-		( dists[longestIdx + 3] + dists[(longestIdx + 3 + 6) % 12] ) +
+		( dists[longestIdx + 3] + dists[( longestIdx + 3 + 6 ) % 12] ) +
 		( dists[( longestIdx + 3 + 13 ) % 12] + dists[( longestIdx + 3 + 5 ) % 12] ) +
 		( dists[( longestIdx + 3 + 1 ) % 12] + dists[( longestIdx + 3 + 7 ) % 12] )
 		) / 3.f;
@@ -171,20 +172,26 @@ float CAutoDSP::GetSkyVisibility( Vector &startPos )
 	{
 		const Vector vecDir = skyDirections[i].Normalized();
 		Ray_t ray;
-		ray.Init( startPos, startPos + (vecDir * MAX_TRACE_LENGTH ) );
+		ray.Init( startPos, startPos + ( vecDir * MAX_TRACE_LENGTH ) );
 
 		trace_t tr;
 		enginetrace->TraceRay( ray, MASK_SHOT_HULL, &filter, &tr );
 		if ( tr.DidHit() && ( tr.surface.flags & SURF_SKY ) )
 		{
 			skyTotal += 1.f;
-			//debugoverlay->AddLineOverlay( tr.startpos, tr.endpos, 255, 0, 0, false, 10 );
-			//debugoverlay->AddBoxOverlay2( tr.endpos, boxMins, boxMaxs, { 0, 0, 0 }, Color(0, 0, 0, 0), Color( 255, 0, 0, 255 ), 10);
+			if ( adsp_debug->GetBool() )
+			{
+				debugoverlay->AddLineOverlay( tr.startpos, tr.endpos, 255, 0, 0, false, 10 );
+				debugoverlay->AddBoxOverlay2( tr.endpos, boxMins, boxMaxs, { 0, 0, 0 }, Color( 0, 0, 0, 0 ), Color( 255, 0, 0, 255 ), 10 );
+			}
 		}
 		else
 		{
-			//debugoverlay->AddLineOverlay( tr.startpos, tr.endpos, 0, 255, 255, false, 10 );
-			//debugoverlay->AddBoxOverlay2( tr.endpos, boxMins, boxMaxs, { 0, 0, 0 }, Color( 0, 0, 0, 0 ), Color( 0, 255, 255, 255 ), 10 );
+			if ( adsp_debug->GetBool() )
+			{
+				debugoverlay->AddLineOverlay( tr.startpos, tr.endpos, 0, 255, 255, false, 10 );
+				debugoverlay->AddBoxOverlay2( tr.endpos, boxMins, boxMaxs, { 0, 0, 0 }, Color( 0, 0, 0, 0 ), Color( 0, 255, 255, 255 ), 10 );
+			}
 		}
 	}
 
@@ -197,12 +204,15 @@ void CAutoDSP::Init( CreateInterfaceFn appSystemFactory, CreateInterfaceFn physi
 	enginetrace = (IEngineTrace *) appSystemFactory( INTERFACEVERSION_ENGINETRACE_CLIENT, NULL );
 	debugoverlay = (IVDebugOverlay *) appSystemFactory( VDEBUG_OVERLAY_INTERFACE_VERSION, NULL );
 	physprops = (IPhysicsSurfaceProps *) physicsFactory( VPHYSICS_SURFACEPROPS_INTERFACE_VERSION, NULL );
+
+	adsp_debug = g_pCVar->FindVar( "adsp_debug" );
 }
 
-void CAutoDSP::Update( Vector listenerPos )
+void CAutoDSP::CategoriseSpace( Vector listenerPos, float &reflectivity, float &spaceSize, DynamicReverbSpace &roomType )
 {
-	const float skyVisibility = GetSkyVisibility( listenerPos );
+	float skyVisibility = GetSkyVisibility( listenerPos );
 	Vector size = { 0, 0, 0 };
-	float reflectivity;
 	GetSpaceSize( listenerPos, size, reflectivity );
+	spaceSize = ( size.x / 12.f ) * ( size.y / 12.f ); // feet cubed
+	roomType = GetRoomType( size, skyVisibility );
 }

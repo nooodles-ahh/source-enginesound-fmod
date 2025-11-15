@@ -4,8 +4,8 @@ const float s_sndLevelDistances[] = {
 	0.0f, // 0 db
 	12,		// 5 db
 	22,		// 10 db
-	40,		// 20 db
-	70,		// 15 db
+	40,		// 15 db
+	70,		// 20 db
 	122,	// 25 db
 	210,	// 30 db
 	350,	// 35 db

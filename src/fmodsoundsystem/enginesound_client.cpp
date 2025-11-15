@@ -166,14 +166,12 @@ public:
 
 		if ( m_engineClient->IsConnected() )
 		{
-			static float updateDSPTime = 0.f;
-			updateDSPTime -= frametime;
-			if ( m_needADSPUpdate && updateDSPTime <= 0.f )
-			{
-				m_autoDSP.Update( m_oldAudioState.m_Origin );
-				m_needADSPUpdate = false;
-				updateDSPTime = 1.f / 10.f;
-			}
+			float reflectivity = 0.f;
+			float spaceSize = 0.f;
+			DynamicReverbSpace roomType = DynamicReverbSpace::Room;
+			m_autoDSP.CategoriseSpace( m_oldAudioState.m_Origin, reflectivity, spaceSize, roomType );
+
+			g_pFMODAudioEngine->UpdateDynamicReverb( roomType, reflectivity, spaceSize );
 		}
 
 		g_pFMODAudioEngine->Update( frametime );
@@ -394,7 +392,7 @@ public:
 	// player (client-side only)
 	virtual void EmitSound( IRecipientFilter &filter, int iEntIndex, int iChannel, const char *pSample,
 		float flVolume, float flAttenuation, int iFlags = 0, int iPitch = PITCH_NORM, int iSpecialDSP = 0,
-		const Vector *pOrigin = NULL, const Vector *pDirection = NULL, CUtlVector< Vector > *pUtlVecOrigins = NULL, 
+		const Vector *pOrigin = NULL, const Vector *pDirection = NULL, CUtlVector< Vector > *pUtlVecOrigins = NULL,
 		bool bUpdatePositions = true, float soundtime = 0.0f, int speakerentity = -1 )
 	{
 		EmitSoundInternal( iEntIndex, iChannel, pSample,
@@ -405,7 +403,7 @@ public:
 
 	virtual void EmitSound( IRecipientFilter &filter, int iEntIndex, int iChannel, const char *pSample,
 		float flVolume, soundlevel_t iSoundlevel, int iFlags = 0, int iPitch = PITCH_NORM, int iSpecialDSP = 0,
-		const Vector *pOrigin = NULL, const Vector *pDirection = NULL, CUtlVector< Vector > *pUtlVecOrigins = NULL, 
+		const Vector *pOrigin = NULL, const Vector *pDirection = NULL, CUtlVector< Vector > *pUtlVecOrigins = NULL,
 		bool bUpdatePositions = true, float soundtime = 0.0f, int speakerentity = -1 )
 	{
 		EmitSoundInternal( iEntIndex, iChannel, pSample,
@@ -416,7 +414,7 @@ public:
 
 	virtual void EmitSentenceByIndex( IRecipientFilter &filter, int iEntIndex, int iChannel, int iSentenceIndex,
 		float flVolume, soundlevel_t iSoundlevel, int iFlags = 0, int iPitch = PITCH_NORM, int iSpecialDSP = 0,
-		const Vector *pOrigin = NULL, const Vector *pDirection = NULL, CUtlVector< Vector > *pUtlVecOrigins = NULL, 
+		const Vector *pOrigin = NULL, const Vector *pDirection = NULL, CUtlVector< Vector > *pUtlVecOrigins = NULL,
 		bool bUpdatePositions = true, float soundtime = 0.0f, int speakerentity = -1 )
 	{
 		// TODO
@@ -553,7 +551,7 @@ CON_COMMAND( nsnd_get_min_dist, "" )
 	if ( args.ArgC() != 3 )
 		return;
 
-	const char* db = args.Arg( 1 );
+	const char *db = args.Arg( 1 );
 	int iDBStart = atoi( db );
 
 	db = args.Arg( 2 );

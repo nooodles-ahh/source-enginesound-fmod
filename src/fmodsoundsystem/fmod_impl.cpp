@@ -27,11 +27,23 @@ void DefaultLogFunction( const char *fmt, ... )
 }
 static LOG_FUNCTION Log = DefaultLogFunction;
 
+static const char *s_ReverbSnapshots[DynamicReverbSpace::Count] =
+{
+	"snapshot:/DynamicReverb/ReverbRoom",
+	"snapshot:/DynamicReverb/ReverbTunnel",
+	"snapshot:/DynamicReverb/ReverbHall",
+	"snapshot:/DynamicReverb/ReverbStreet",
+	"snapshot:/DynamicReverb/ReverbAlley",
+	"snapshot:/DynamicReverb/ReverbCourtyard",
+	"snapshot:/DynamicReverb/ReverbOpenSpace",
+};
+
 class CFMODAudioEngine : public IFMODAudioEngine
 {
 	FMOD::System *m_pSystem;
 	FMOD::Studio::System *m_pStudioSystem;
 	FMOD::ChannelGroup *m_pMasterChannelGroup;
+	FMOD::ChannelGroup *m_pSFXChannelGroup;
 
 	std::map<std::string, FMOD::Sound *> m_loadedSounds;
 	std::map<int, FMOD::Channel *> m_channels;
@@ -40,10 +52,21 @@ class CFMODAudioEngine : public IFMODAudioEngine
 
 	FMOD_3D_ATTRIBUTES m_listenerAttribs;
 
+	struct {
+		DynamicReverbSpace space;
+		float reflectivity;
+		float size;
+	} m_reverbTarget;
+	
+	FMOD::Studio::EventDescription *m_ReverbSnapshots[DynamicReverbSpace::Count];
+	FMOD::Studio::EventInstance *m_ReverbSnapshotsActive[DynamicReverbSpace::Count];
+
 public:
 	CFMODAudioEngine()
 	{
-
+		m_reverbTarget.space = DynamicReverbSpace::Room;
+		m_reverbTarget.reflectivity = 0.f;
+		m_reverbTarget.size = 10.f;
 	}
 
 	virtual bool Init( FMOD_MEMORY_ALLOC_CALLBACK useralloc,
@@ -95,7 +118,46 @@ public:
 			m_pSystem->set3DSettings( 1.f, SourceUnitsPerMeter, 1.f );
 		}
 
+		Studio::Bank *pBank = nullptr;
+		if ( FMOD_RESULT result = m_pStudioSystem->loadBankFile( "fmod/Master.bank", FMOD_STUDIO_LOAD_BANK_NORMAL, &pBank ) )
+		{
+			Log( "FMOD Error: %s\n", FMOD_ErrorString( result ) );
+			return false;
+		}
+		pBank->loadSampleData();
+		if ( FMOD_RESULT result = m_pStudioSystem->loadBankFile( "fmod/Master.strings.bank", FMOD_STUDIO_LOAD_BANK_NORMAL, &pBank ) )
+		{
+			Log( "FMOD Error: %s\n", FMOD_ErrorString( result ) );
+			return false;
+		}
+		pBank->loadSampleData();
+
+		m_pStudioSystem->update();
+
+
+		Studio::Bus *pBus;
+		m_pStudioSystem->getBus( "bus:/SFX", &pBus );
+		pBus->lockChannelGroup();
+		m_pStudioSystem->flushCommands();
+		if ( FMOD_RESULT result = pBus->getChannelGroup( &m_pSFXChannelGroup ) )
+		{
+			Log( "FMOD Error: %s\n", FMOD_ErrorString( result ) );
+			return false;
+		}
+
+		InitDynamicReverb();
+
 		return true;
+	}
+
+	void InitDynamicReverb()
+	{
+		for ( int i = 0; i < DynamicReverbSpace::Count; ++i )
+		{
+			Studio::EventDescription *pDesc = nullptr;
+			if ( !m_pStudioSystem->getEvent( s_ReverbSnapshots[i], &pDesc ) )
+				m_ReverbSnapshots[i] = pDesc;
+		}
 	}
 
 	virtual void Shutdown()
@@ -118,7 +180,34 @@ public:
 			m_channels.erase( it );
 		}
 
+		UpdateDynamicReverb( dt );
+
 		m_pStudioSystem->update();
+	}
+
+	void UpdateDynamicReverb( float dt )
+	{
+		for ( int i = 0; i < DynamicReverbSpace::Count; ++i )
+		{
+			if ( m_ReverbSnapshotsActive[i] )
+			{
+				bool isTarget = i == m_reverbTarget.space;
+				Studio::EventInstance *instance = m_ReverbSnapshotsActive[i];
+				float curValue = 0.f;
+				instance->getParameterByName( "parameter:/Intensity", &curValue );
+				float targetValue = std::max( 0.f, std::min( 100.f, isTarget ? curValue + (100.f * dt ) : curValue - (100.f * dt ) ) );
+				instance->setParameterByName( "parameter:/Intensity", targetValue );
+
+				if ( !isTarget && targetValue <= 0.f )
+				{
+					Log( "Snapshot %s stopped\n", s_ReverbSnapshots[i] );
+					instance->stop( FMOD_STUDIO_STOP_IMMEDIATE );
+					instance->release();
+					m_ReverbSnapshotsActive[i] = nullptr;
+				}
+			}
+
+		}
 	}
 
 	virtual void LoadSound( const char *soundName, bool isStream, bool is3d )
@@ -210,7 +299,7 @@ public:
 		}
 
 		FMOD::Channel *channel = nullptr;
-		if ( FMOD_RESULT result = m_pSystem->playSound( soundIt->second, m_pMasterChannelGroup, true, &channel ) )
+		if ( FMOD_RESULT result = m_pSystem->playSound( soundIt->second, m_pSFXChannelGroup, true, &channel ) )
 		{
 			Log( "FMOD Error: System::playSound failed: %s\n", FMOD_ErrorString( result ) );
 			return -1;
@@ -225,6 +314,35 @@ public:
 		m_channels[channelId] = channel;
 
 		return channelId;
+	}
+
+	virtual int GetSnapshotGUID( const char *snapshotName )
+	{
+		return 0;
+	}
+
+	virtual void StartSnapshot( int guid )
+	{
+	}
+
+	virtual void StopSnapshot( int guid )
+	{
+	}
+
+	virtual void UpdateDynamicReverb( DynamicReverbSpace spaceType, float reflectivity, float size )
+	{
+		if ( !m_ReverbSnapshotsActive[spaceType] )
+		{
+			Studio::EventInstance *instance;
+			m_ReverbSnapshots[spaceType]->createInstance( &instance );
+			instance->start();
+			if ( instance->setParameterByName( "Intensity", 0.f ) )
+				Log( "FUCK\n" );
+			m_ReverbSnapshotsActive[spaceType] = instance;
+			Log( "%s no longer target, %s started\n", s_ReverbSnapshots[m_reverbTarget.space], s_ReverbSnapshots[spaceType] );
+		}
+
+		m_reverbTarget.space = spaceType;
 	}
 
 	virtual void StartChannel( int channelId ) 
