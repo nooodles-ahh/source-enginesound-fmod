@@ -80,6 +80,12 @@ public:
 		m_pGlobals = globals;
 		m_autoDSP.Init( appSystemFactory, physicsFactory );
 
+		static const char *soundBankPaths[] =
+		{
+			"fmod/Master.strings",
+			"fmod/Master"
+		};
+
 		g_pFMODAudioEngine->Init(
 			USER_FMOD_ALLOC,
 			USER_FMOD_REALLOC,
@@ -88,7 +94,8 @@ public:
 			USER_FMOD_FILE_CLOSE_CALLBACK,
 			USER_FMOD_FILE_READ_CALLBACK,
 			USER_FMOD_FILE_SEEK_CALLBACK,
-			ConMsg
+			ConMsg,
+			soundBankPaths, ARRAYSIZE( soundBankPaths )
 		);
 	}
 	virtual void Shutdown()
@@ -168,7 +175,7 @@ public:
 		{
 			float reflectivity = 0.f;
 			float spaceSize = 0.f;
-			DynamicReverbSpace roomType = DynamicReverbSpace::Room;
+			DynamicReverbSpace roomType = DynamicReverbSpace::ReverbRoom;
 			m_autoDSP.CategoriseSpace( m_oldAudioState.m_Origin, reflectivity, spaceSize, roomType );
 
 			g_pFMODAudioEngine->UpdateDynamicReverb( roomType, reflectivity, spaceSize );
@@ -186,7 +193,13 @@ public:
 
 	virtual void OnDisconnectedFromServer()
 	{
-		StopAllSounds( false );
+		// stop all sounds that aren't from the UI
+		// TODO should we have a way to not stop particular sounds?
+		FOR_EACH_LL( m_activeChannels, i )
+		{
+			if ( m_activeChannels[i].entityIndex != SOUND_FROM_UI_PANEL )
+				g_pFMODAudioEngine->StopChannel( m_activeChannels[i].id );
+		}
 	}
 
 	virtual void SetAudioState( const AudioState_t &state )
@@ -236,12 +249,6 @@ private:
 		// if we don't have a sample, we can't do anything
 		if ( !pSample || !pSample[0] )
 			return;
-
-		bool scrape = false;
-		if ( V_strstr( pSample, "scrape" ) )
-		{
-			scrape = true;
-		}
 
 		if ( TestSoundChar( pSample, CHAR_SENTENCE ) )
 		{
@@ -311,7 +318,10 @@ private:
 		if ( pDirection )
 			ang = { pDirection->x, pDirection->z, -( pDirection->y ) };
 
-		int channelId = g_pFMODAudioEngine->PlaySound( szSampleFull, fVol, pos, ang, true );
+		bool dryMix = TestSoundChar( pSample, CHAR_DRYMIX );
+		bool ui = iEntity == SOUND_FROM_UI_PANEL;
+
+		int channelId = g_pFMODAudioEngine->PlaySound( szSampleFull, fVol, pos, ang, true, dryMix, ui );
 		if ( channelId == -1 )
 			return;
 

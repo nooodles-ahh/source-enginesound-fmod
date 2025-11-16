@@ -45,7 +45,7 @@ DynamicReverbSpace CAutoDSP::GetRoomType( Vector &size, float &skyVisibility )
 	if ( skyVisiblity > SkyFactor )
 	{
 		// TODO
-		return DynamicReverbSpace::OpenSpace;
+		return DynamicReverbSpace::ReverbOpenSpace;
 	}
 	// inside
 	else
@@ -57,16 +57,16 @@ DynamicReverbSpace CAutoDSP::GetRoomType( Vector &size, float &skyVisibility )
 		{
 			if ( sideB <= 96 )
 			{
-				return DynamicReverbSpace::Hall;
+				return DynamicReverbSpace::ReverbHall;
 			}
 			else if ( spaceRatio >= TunnelRatio )
 			{
-				return DynamicReverbSpace::Tunnel;
+				return DynamicReverbSpace::ReverbTunnel;
 			}
 		}
 
 		// it's just a fucking room
-		return DynamicReverbSpace::Room;
+		return DynamicReverbSpace::ReverbRoom;
 	}
 }
 

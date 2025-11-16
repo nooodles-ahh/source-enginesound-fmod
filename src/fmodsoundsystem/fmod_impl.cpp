@@ -27,7 +27,7 @@ void DefaultLogFunction( const char *fmt, ... )
 }
 static LOG_FUNCTION Log = DefaultLogFunction;
 
-static const char *s_ReverbSnapshots[DynamicReverbSpace::Count] =
+static const char *s_ReverbSnapshots[DynamicReverbSpace::ReverbSpaceCount] =
 {
 	"snapshot:/DynamicReverb/ReverbRoom",
 	"snapshot:/DynamicReverb/ReverbTunnel",
@@ -38,14 +38,33 @@ static const char *s_ReverbSnapshots[DynamicReverbSpace::Count] =
 	"snapshot:/DynamicReverb/ReverbOpenSpace",
 };
 
+enum ChanGroup
+{
+	ChanGroupSFX, // anything affected by DSP
+	ChanGroupDry, // sounds unaffected by DSP
+	ChanGroupUI, // sounds unaffected by DSP and pausing
+
+	ChanGroupCount
+};
+
+const char *channelBusNames[] =
+{
+	"bus:/SFX",
+	"bus:/Music",
+	"bus:/UI",
+};
+static_assert( std::size( channelBusNames ) == ChanGroup::ChanGroupCount, "Not enough channelGroupNames" );
+
 class CFMODAudioEngine : public IFMODAudioEngine
 {
 	FMOD::System *m_pSystem;
 	FMOD::Studio::System *m_pStudioSystem;
 	FMOD::ChannelGroup *m_pMasterChannelGroup;
+	FMOD::ChannelGroup *m_channelGroupMapping[ChanGroup::ChanGroupCount];
 	FMOD::ChannelGroup *m_pSFXChannelGroup;
 
 	std::map<std::string, FMOD::Sound *> m_loadedSounds;
+	std::map<std::string, FMOD::Studio::Bank *> m_loadedBanks;
 	std::map<int, FMOD::Channel *> m_channels;
 
 	int m_lastGUID;
@@ -58,13 +77,13 @@ class CFMODAudioEngine : public IFMODAudioEngine
 		float size;
 	} m_reverbTarget;
 	
-	FMOD::Studio::EventDescription *m_ReverbSnapshots[DynamicReverbSpace::Count];
-	FMOD::Studio::EventInstance *m_ReverbSnapshotsActive[DynamicReverbSpace::Count];
+	FMOD::Studio::EventDescription *m_ReverbSnapshots[DynamicReverbSpace::ReverbSpaceCount];
+	FMOD::Studio::EventInstance *m_ReverbSnapshotsActive[DynamicReverbSpace::ReverbSpaceCount];
 
 public:
 	CFMODAudioEngine()
 	{
-		m_reverbTarget.space = DynamicReverbSpace::Room;
+		m_reverbTarget.space = DynamicReverbSpace::ReverbRoom;
 		m_reverbTarget.reflectivity = 0.f;
 		m_reverbTarget.size = 10.f;
 	}
@@ -73,7 +92,7 @@ public:
 		FMOD_MEMORY_REALLOC_CALLBACK userrealloc, FMOD_MEMORY_FREE_CALLBACK userfree,
 		FMOD_FILE_OPEN_CALLBACK useropen, FMOD_FILE_CLOSE_CALLBACK userclose,
 		FMOD_FILE_READ_CALLBACK userread, FMOD_FILE_SEEK_CALLBACK userseek,
-		LOG_FUNCTION logfunc )
+		LOG_FUNCTION logfunc, const char **bankList, int bankCount )
 	{
 		if ( logfunc )
 			Log = logfunc;
@@ -90,7 +109,7 @@ public:
 			return false;
 		}
 
-		if ( FMOD_RESULT result = m_pStudioSystem->initialize( 1024, FMOD_STUDIO_INIT_LIVEUPDATE | FMOD_STUDIO_INIT_SYNCHRONOUS_UPDATE,
+		if ( FMOD_RESULT result = m_pStudioSystem->initialize( 1024, FMOD_STUDIO_INIT_LIVEUPDATE,
 			FMOD_INIT_NORMAL | FMOD_INIT_3D_RIGHTHANDED, 0 ) )
 		{
 			Log( "FMOD Error: Studio::System::initialize failed: %s\n", FMOD_ErrorString( result ) );
@@ -118,31 +137,28 @@ public:
 			m_pSystem->set3DSettings( 1.f, SourceUnitsPerMeter, 1.f );
 		}
 
-		Studio::Bank *pBank = nullptr;
-		if ( FMOD_RESULT result = m_pStudioSystem->loadBankFile( "fmod/Master.bank", FMOD_STUDIO_LOAD_BANK_NORMAL, &pBank ) )
+		// load banks
+		if ( bankList && bankCount > 0 )
 		{
-			Log( "FMOD Error: %s\n", FMOD_ErrorString( result ) );
-			return false;
+			for ( int i = 0; i < bankCount; ++i )
+				LoadBank( bankList[i] );
 		}
-		pBank->loadSampleData();
-		if ( FMOD_RESULT result = m_pStudioSystem->loadBankFile( "fmod/Master.strings.bank", FMOD_STUDIO_LOAD_BANK_NORMAL, &pBank ) )
+
+		// grab channel groups used for core sounds
+		for ( int i = 0; i < ChanGroup::ChanGroupCount; ++i )
 		{
-			Log( "FMOD Error: %s\n", FMOD_ErrorString( result ) );
-			return false;
-		}
-		pBank->loadSampleData();
+			Studio::Bus *pBus;
+			ChannelGroup *pChannelGroup;
+			m_pStudioSystem->getBus( channelBusNames[i], &pBus);
+			pBus->lockChannelGroup();
+			m_pStudioSystem->flushCommands();
+			if ( FMOD_RESULT result = pBus->getChannelGroup( &pChannelGroup ) )
+			{
+				Log( "FMOD Error: %s\n", FMOD_ErrorString( result ) );
+				return false;
+			}
 
-		m_pStudioSystem->update();
-
-
-		Studio::Bus *pBus;
-		m_pStudioSystem->getBus( "bus:/SFX", &pBus );
-		pBus->lockChannelGroup();
-		m_pStudioSystem->flushCommands();
-		if ( FMOD_RESULT result = pBus->getChannelGroup( &m_pSFXChannelGroup ) )
-		{
-			Log( "FMOD Error: %s\n", FMOD_ErrorString( result ) );
-			return false;
+			m_channelGroupMapping[i] = pChannelGroup;
 		}
 
 		InitDynamicReverb();
@@ -152,7 +168,7 @@ public:
 
 	void InitDynamicReverb()
 	{
-		for ( int i = 0; i < DynamicReverbSpace::Count; ++i )
+		for ( int i = 0; i < DynamicReverbSpace::ReverbSpaceCount; ++i )
 		{
 			Studio::EventDescription *pDesc = nullptr;
 			if ( !m_pStudioSystem->getEvent( s_ReverbSnapshots[i], &pDesc ) )
@@ -187,20 +203,19 @@ public:
 
 	void UpdateDynamicReverb( float dt )
 	{
-		for ( int i = 0; i < DynamicReverbSpace::Count; ++i )
+		for ( int i = 0; i < DynamicReverbSpace::ReverbSpaceCount; ++i )
 		{
 			if ( m_ReverbSnapshotsActive[i] )
 			{
 				bool isTarget = i == m_reverbTarget.space;
 				Studio::EventInstance *instance = m_ReverbSnapshotsActive[i];
 				float curValue = 0.f;
-				instance->getParameterByName( "parameter:/Intensity", &curValue );
+				instance->getParameterByName( "Intensity", &curValue );
 				float targetValue = std::max( 0.f, std::min( 100.f, isTarget ? curValue + (100.f * dt ) : curValue - (100.f * dt ) ) );
-				instance->setParameterByName( "parameter:/Intensity", targetValue );
+				instance->setParameterByName( "Intensity", targetValue );
 
 				if ( !isTarget && targetValue <= 0.f )
 				{
-					Log( "Snapshot %s stopped\n", s_ReverbSnapshots[i] );
 					instance->stop( FMOD_STUDIO_STOP_IMMEDIATE );
 					instance->release();
 					m_ReverbSnapshotsActive[i] = nullptr;
@@ -283,7 +298,7 @@ public:
 		m_pStudioSystem->setListenerAttributes( 0, &m_listenerAttribs );
 	}
 
-	virtual int PlaySound( const char *soundName, float volume, const SoundVector &position, const SoundVector &angle, bool startPaused )
+	virtual int PlaySound( const char *soundName, float volume, const SoundVector &position, const SoundVector &angle, bool startPaused, bool dryMix, bool uiSound )
 	{
 		auto soundIt = m_loadedSounds.find( soundName );
 		if ( soundIt == m_loadedSounds.end() )
@@ -297,9 +312,12 @@ public:
 				return -1;
 			}
 		}
+		
+		ChanGroup channelGroup = uiSound ? ChanGroup::ChanGroupUI :
+			dryMix ? ChanGroup::ChanGroupDry : ChanGroup::ChanGroupSFX;
 
 		FMOD::Channel *channel = nullptr;
-		if ( FMOD_RESULT result = m_pSystem->playSound( soundIt->second, m_pSFXChannelGroup, true, &channel ) )
+		if ( FMOD_RESULT result = m_pSystem->playSound( soundIt->second, m_channelGroupMapping[channelGroup], true, &channel) )
 		{
 			Log( "FMOD Error: System::playSound failed: %s\n", FMOD_ErrorString( result ) );
 			return -1;
@@ -314,6 +332,40 @@ public:
 		m_channels[channelId] = channel;
 
 		return channelId;
+	}
+
+	virtual int PlayEvent( const char *soundName, float volume, const SoundVector &position, const SoundVector &angle, bool startPaused )
+	{
+		return -1;
+	}
+
+	virtual void LoadBank( const char *bankPath )
+	{
+		auto bankIt = m_loadedBanks.find( bankPath );
+		if ( bankIt == m_loadedBanks.end() )
+		{
+			char szBankPath[256];
+			snprintf( szBankPath, sizeof( szBankPath ), "%s.bank", bankPath );
+			Studio::Bank *pBank = nullptr;
+			if ( FMOD_RESULT result = m_pStudioSystem->loadBankFile( szBankPath, FMOD_STUDIO_LOAD_BANK_NORMAL, &pBank ) )
+			{
+				Log( "FMOD Error could not load sound bank: %s\n", FMOD_ErrorString( result ) );
+				return;
+			}
+			pBank->loadSampleData();
+
+			m_loadedBanks[bankPath] = pBank;
+		}
+	}
+
+	virtual void UnloadBank( const char *bankPath )
+	{
+		auto bankIt = m_loadedBanks.find( bankPath );
+		if ( bankIt != m_loadedBanks.end() )
+		{
+			bankIt->second->unload();
+			m_loadedBanks.erase( bankIt );
+		}
 	}
 
 	virtual int GetSnapshotGUID( const char *snapshotName )
@@ -336,10 +388,8 @@ public:
 			Studio::EventInstance *instance;
 			m_ReverbSnapshots[spaceType]->createInstance( &instance );
 			instance->start();
-			if ( instance->setParameterByName( "Intensity", 0.f ) )
-				Log( "FUCK\n" );
+			instance->setParameterByName( "Intensity", 0.f );
 			m_ReverbSnapshotsActive[spaceType] = instance;
-			Log( "%s no longer target, %s started\n", s_ReverbSnapshots[m_reverbTarget.space], s_ReverbSnapshots[spaceType] );
 		}
 
 		m_reverbTarget.space = spaceType;

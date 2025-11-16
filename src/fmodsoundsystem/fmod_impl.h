@@ -13,15 +13,15 @@ struct SoundVector
 
 enum DynamicReverbSpace
 {
-	Room,
-	Hall,
-	Tunnel,
-	Street,
-	Alley,
-	Courtyard,
-	OpenSpace,
+	ReverbRoom,
+	ReverbHall,
+	ReverbTunnel,
+	ReverbStreet,
+	ReverbAlley,
+	ReverbCourtyard,
+	ReverbOpenSpace,
 
-	Count,
+	ReverbSpaceCount,
 };
 
 class IFMODAudioEngine
@@ -31,7 +31,7 @@ public:
 		FMOD_MEMORY_REALLOC_CALLBACK userrealloc = nullptr, FMOD_MEMORY_FREE_CALLBACK userfree = nullptr,
 		FMOD_FILE_OPEN_CALLBACK useropen = nullptr, FMOD_FILE_CLOSE_CALLBACK userclose = nullptr,
 		FMOD_FILE_READ_CALLBACK userread = nullptr, FMOD_FILE_SEEK_CALLBACK userseek = nullptr,
-		LOG_FUNCTION logfunc = nullptr ) = 0;
+		LOG_FUNCTION logfunc = nullptr, const char **bankList = nullptr, int bankCount = 0 ) = 0;
 	virtual void Shutdown() = 0;
 	virtual void Update( float dt ) = 0;
 
@@ -42,7 +42,11 @@ public:
 	virtual int GetLastGUID() const = 0;
 
 	virtual void UpdateListenerPosition( const SoundVector &position, const SoundVector &forward, const SoundVector &up ) = 0;
-	virtual int PlaySound( const char *soundName, float volume, const SoundVector &position, const SoundVector &angle, bool startPaused ) = 0;
+	virtual int PlaySound( const char *soundName, float volume, const SoundVector &position, const SoundVector &angle, bool startPaused, bool dryMix, bool uiSound ) = 0;
+	virtual int PlayEvent( const char *soundName, float volume, const SoundVector &position, const SoundVector &angle, bool startPaused ) = 0;
+
+	virtual void LoadBank( const char *bankPath ) = 0;
+	virtual void UnloadBank( const char *bankPath ) = 0;
 
 	virtual int GetSnapshotGUID( const char *snapshotName ) = 0;
 	virtual void StartSnapshot( int guid ) = 0;
